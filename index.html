@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline Wi-Fi Share</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; background: #f4f4f9; color: #222; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
+    button.secondary { background: #333; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.85em; text-align: center; margin: 10px 0; }
+    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; }
+    video { width: 100%; border-radius: 8px; background: #000; margin-top: 10px; display: none; }
+    .hidden { display: none; }
+    progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
+    .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
+    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <div class="card" id="setup-card">
+    <h3 style="margin-top:0;">1. Connect Offline via Hotspot</h3>
+    <p style="font-size: 0.9em; color: #555;">Connect both devices to the same local Wi-Fi Hotspot.</p>
+    <button id="host-btn">Device A: Create Connection Code</button>
+    <button id="join-btn" class="secondary">Device B: Enter Connection Code</button>
+  </div>
+
+  <div class="card hidden" id="connection-card">
+    <h3 id="conn-title">Connection Code</h3>
+    <p id="conn-instruction" style="font-size: 0.9em; color: #555;"></p>
+    <div id="text-qr">Generating code...</div>
+    <div id="reply-box" class="hidden">
+      <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Reply Code from Device B:</p>
+      <textarea id="remote-answer-input" placeholder="Paste code here..."></textarea>
+      <button id="connect-confirm-btn">Complete Connection</button>
+    </div>
+    <div id="join-box" class="hidden">
+      <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Device A's Code Here:</p>
+      <textarea id="remote-offer-input" placeholder="Paste code here..."></textarea>
+      <button id="join-submit-btn">Generate Reply Code</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="transfer-card">
+    <h3 style="color: #16a34a; margin-top: 0;">● Connected Locally</h3>
+    <input type="file" id="file-input" multiple style="width: 100%;">
+    <button id="send-btn">Send Selected Files</button>
+    
+    <div id="send-progress-box" class="hidden">
+      <progress id="send-progress" value="0" max="100"></progress>
+      <div class="status-text" id="send-status">Sending...</div>
+    </div>
+
+    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+    <h4 style="margin-bottom: 8px;">Received Files</h4>
+    <div id="receive-progress-box" class="hidden">
+      <progress id="receive-progress" value="0" max="100"></progress>
+      <div class="status-text" id="receive-status">Receiving...</div>
+    </div>
+    <div id="received-list">Waiting for files...</div>
+  </div>
+
+  <script>
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    let dataChannel = null;
+    const CHUNK_SIZE = 16384;
+
+    const setupCard = document.getElementById('setup-card');
+    const connCard = document.getElementById('connection-card');
+    const transferCard = document.getElementById('transfer-card');
+    const connTitle = document.getElementById('conn-title');
+    const connInstruction = document.getElementById('conn-instruction');
+    const textQr = document.getElementById('text-qr');
+    const replyBox = document.getElementById('reply-box');
+    const joinBox = document.getElementById('join-box');
+
+    function gatherIceCandidates() {
+      return new Promise((resolve) => {
+        if (pc.iceGatheringState === 'complete') return resolve();
+        const check = () => {
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', check);
+            resolve();
+          }
+        };
+        pc.addEventListener('icegatheringstatechange', check);
+        setTimeout(resolve, 1500);
+      });
+    }
+
+    function setupDataChannel(channel) {
+      dataChannel = channel;
+      dataChannel.binaryType = 'arraybuffer';
+      dataChannel.bufferedAmountLowThreshold = 65536;
+
+      dataChannel.onopen = () => {
+        connCard.classList.add('hidden');
+        transferCard.classList.remove('hidden');
+      };
+
+      let incomingMeta = null;
+      let receiveBuffer = [];
+      let receivedBytes = 0;
+
+      const recBox = document.getElementById('receive-progress-box');
+      const recBar = document.getElementById('receive-progress');
+      const recStatus = document.getElementById('receive-status');
+
+      dataChannel.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'meta') {
+            incomingMeta = msg;
+            receiveBuffer = [];
+            receivedBytes = 0;
+            recBox.classList.remove('hidden');
+            recBar.value = 0;
+            recStatus.textContent = `Receiving ${msg.name}... 0%`;
+          } else if (msg.type === 'eof' && incomingMeta) {
+            const blob = new Blob(receiveBuffer, { type: incomingMeta.fileType });
+            const url = URL.createObjectURL(blob);
+            const list = document.getElementById('received-list');
+            if (list.textContent === 'Waiting for files...') list.innerHTML = '';
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = incomingMeta.name;
+            const sizeMB = (incomingMeta.size / (1024 * 1024)).toFixed(2);
+            a.textContent = `Download: ${incomingMeta.name} (${sizeMB} MB)`;
+            list.appendChild(a);
+
+            recBox.classList.add('hidden');
+            receiveBuffer = [];
+            incomingMeta = null;
+          }
+          return;
+        }
+
+        if (incomingMeta) {
+          receiveBuffer.push(event.data);
+          receivedBytes += event.data.byteLength;
+          const pct = Math.min(100, Math.round((receivedBytes / incomingMeta.size) * 100));
+          recBar.value = pct;
+          recStatus.textContent = `Receiving ${incomingMeta.name}... ${pct}%`;
+        }
+      };
+    }
+
+    // Host Flow
+    document.getElementById('host-btn').addEventListener('click', async () => {
+      setupCard.classList.add('hidden');
+      connCard.classList.remove('hidden');
+      connTitle.textContent = "Step 1: Copy Code for Device B";
+      connInstruction.textContent = "Copy this text code and give it to Device B via WhatsApp/Bluetooth or text message over the hotspot network:";
+
+      const channel = pc.createDataChannel("file-transfer");
+      setupDataChannel(channel);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await gatherIceCandidates();
+
+      textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
+      replyBox.classList.remove('hidden');
+    });
+
+    document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
+      try {
+        const raw = document.getElementById('remote-answer-input').value.trim();
+        const parsed = JSON.parse(atob(raw));
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
+      } catch (err) {
+        alert("Invalid code format!");
+      }
+    });
+
+    // Joiner Flow
+    document.getElementById('join-btn').addEventListener('click', () => {
+      setupCard.classList.add('hidden');
+      connCard.classList.remove('hidden');
+      connTitle.textContent = "Step 1: Enter Host Code";
+      connInstruction.textContent = "Paste the code you received from Device A below:";
+      textQr.style.display = 'none';
+      joinBox.classList.remove('hidden');
+
+      pc.ondatachannel = (event) => setupDataChannel(event.channel);
+    });
+
+    document.getElementById('join-submit-btn').addEventListener('click', async () => {
+      try {
+        const raw = document.getElementById('remote-offer-input').value.trim();
+        const parsed = JSON.parse(atob(raw));
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await gatherIceCandidates();
+
+        connTitle.textContent = "Step 2: Copy Reply Code";
+        connInstruction.textContent = "Copy this reply code and send it back to Device A:";
+        joinBox.classList.add('hidden');
+        textQr.style.display = 'block';
+        textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
+      } catch (err) {
+        alert("Invalid offer code!");
+      }
+    });
+
+    // File Transfer Handler
+    document.getElementById('send-btn').addEventListener('click', async () => {
+      const files = document.getElementById('file-input').files;
+      if (!files.length || !dataChannel || dataChannel.readyState !== 'open') return;
+
+      const sendBtn = document.getElementById('send-btn');
+      const sendBox = document.getElementById('send-progress-box');
+      const sendBar = document.getElementById('send-progress');
+      const sendStatus = document.getElementById('send-status');
+
+      sendBtn.disabled = true;
+      sendBox.classList.remove('hidden');
+
+      for (const file of files) {
+        dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, fileType: file.type }));
+
+        let offset = 0;
+        while (offset < file.size) {
+          if (dataChannel.bufferedAmount > 262144) {
+            await new Promise((resolve) => {
+              dataChannel.onbufferedamountlow = () => {
+                dataChannel.onbufferedamountlow = null;
+                resolve();
+              };
+            });
+          }
+
+          const slice = file.slice(offset, offset + CHUNK_SIZE);
+          const buffer = await slice.arrayBuffer();
+          dataChannel.send(buffer);
+          offset += buffer.byteLength;
+
+          const pct = Math.min(100, Math.round((offset / file.size) * 100));
+          sendBar.value = pct;
+          sendStatus.textContent = `Sending ${file.name}... ${pct%}%`;
+        }
+
+        dataChannel.send(JSON.stringify({ type: 'eof' }));
+      }
+
+      sendStatus.textContent = 'All files sent!';
+      sendBtn.disabled = false;
+      setTimeout(() => sendBox.classList.add('hidden'), 3000);
+    });
+  </script>
+</body>
+</html>
