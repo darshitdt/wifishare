@@ -10,8 +10,8 @@
     button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
     button.secondary { background: #333; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.8em; text-align: center; margin: 10px 0; user-select: all; max-height: 120px; overflow-y: auto; }
-    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.8em; }
+    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.75em; text-align: center; margin: 10px 0; user-select: all; max-height: 100px; overflow-y: auto; }
+    textarea { width: 100%; height: 70px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.75em; }
     .hidden { display: none; }
     progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
     .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
@@ -33,7 +33,7 @@
     <div id="text-qr">Generating code...</div>
     <div id="reply-box" class="hidden">
       <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Reply Code from Device B:</p>
-      <textarea id="remote-answer-input" placeholder="Paste code here..."></textarea>
+      <textarea id="remote-answer-input" placeholder="Paste reply here..."></textarea>
       <button id="connect-confirm-btn">Complete Connection</button>
     </div>
     <div id="join-box" class="hidden">
@@ -77,14 +77,8 @@
     const replyBox = document.getElementById('reply-box');
     const joinBox = document.getElementById('join-box');
 
-    function parseConnectionCode(raw) {
-      // Remove all spaces, tabs, and newlines introduced by mobile copy-pasting
-      const cleaned = raw.replace(/\s+/g, '');
-      try {
-        return JSON.parse(atob(cleaned));
-      } catch (e) {
-        return JSON.parse(cleaned); // Fallback if raw JSON
-      }
+    function cleanCode(raw) {
+      return raw.replace(/[\r\n\s]+/g, '').trim();
     }
 
     function setupDataChannel(channel) {
@@ -151,7 +145,7 @@
         setupCard.classList.add('hidden');
         connCard.classList.remove('hidden');
         connTitle.textContent = "Step 1: Copy Code for Device B";
-        connInstruction.textContent = "Copy this text code and share it with Device B:";
+        connInstruction.textContent = "Copy this code block and share it with Device B:";
 
         const channel = pc.createDataChannel("file-transfer");
         setupDataChannel(channel);
@@ -162,17 +156,17 @@
         textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
         replyBox.classList.remove('hidden');
       } catch (err) {
-        alert("Error creating offer: " + err.message);
+        alert("Error: " + err.message);
       }
     });
 
     document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
       try {
-        const raw = document.getElementById('remote-answer-input').value.trim();
-        const parsed = parseConnectionCode(raw);
+        const raw = document.getElementById('remote-answer-input').value;
+        const parsed = JSON.parse(atob(cleanCode(raw)));
         await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
       } catch (err) {
-        alert("Invalid code format! Please make sure you copied the entire text code.");
+        alert("Formatting error. Please copy the complete text box cleanly.");
       }
     });
 
@@ -190,8 +184,8 @@
 
     document.getElementById('join-submit-btn').addEventListener('click', async () => {
       try {
-        const raw = document.getElementById('remote-offer-input').value.trim();
-        const parsed = parseConnectionCode(raw);
+        const raw = document.getElementById('remote-offer-input').value;
+        const parsed = JSON.parse(atob(cleanCode(raw)));
         await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
 
         const answer = await pc.createAnswer();
@@ -203,7 +197,7 @@
         textQr.style.display = 'block';
         textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
       } catch (err) {
-        alert("Invalid offer code! Please check your pasted text.");
+        alert("Formatting error. Please verify the pasted code.");
       }
     });
 
