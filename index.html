@@ -31,7 +31,7 @@
     <h3 style="margin-top:0;">Your Room Code</h3>
     <p style="font-size: 0.9em; color: #555;">Give this 4-character code to the other device:</p>
     <div class="code-display" id="host-code-display">----</div>
-    <p class="status-text" id="host-status">Waiting for peer to connect...</p>
+    <p class="status-text" id="host-status">Waiting for peer to connect via relay...</p>
   </div>
 
   <div class="card hidden" id="join-card">
@@ -65,10 +65,8 @@
   <script>
     let pc = null;
     let dataChannel = null;
-    const CHUNK_SIZE = 16384;
-    const SIGNALING_URL = "https://free-signaling-server.herokuapp.com"; // Public or fallback relay
-    // Alternatively, using a free broadcast channel approach via a public test relay:
     let ws = null;
+    const CHUNK_SIZE = 16384;
 
     const setupCard = document.getElementById('setup-card');
     const hostCard = document.getElementById('host-card');
@@ -89,7 +87,7 @@
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
 
-      // Connect via public WebSocket relay room
+      // Public open WebSocket testing relay to route the short 4-digit room signaling
       ws = new WebSocket(`wss://socketsbay.com/wss/v2/1/demo/`);
 
       ws.onopen = () => {
@@ -105,14 +103,21 @@
       };
 
       ws.onmessage = async (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'signal' && msg.sdp) {
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-          if (msg.sdp.type === 'offer') {
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ type: 'signal', room: code, sdp: answer }));
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.room === code && msg.sdp) {
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+            if (msg.sdp.type === 'offer') {
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              ws.send(JSON.stringify({ type: 'signal', room: code, sdp: answer }));
+            }
           }
+          if (msg.room === code && msg.candidate) {
+            await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+          }
+        } catch (e) {
+          console.error(e);
         }
       };
 
@@ -188,7 +193,6 @@
       };
     }
 
-    // UI Event Listeners
     document.getElementById('create-room-btn').addEventListener('click', () => {
       const roomCode = generateCode();
       setupCard.classList.add('hidden');
