@@ -6,46 +6,45 @@
   <title>Offline Wi-Fi Share</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; background: #f4f4f9; color: #222; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; text-align: center; }
     button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
     button.secondary { background: #333; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.75em; text-align: center; margin: 10px 0; user-select: all; max-height: 100px; overflow-y: auto; }
-    textarea { width: 100%; height: 70px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.75em; }
+    input[type="text"] { width: 100%; padding: 12px; margin-top: 10px; font-size: 1.5em; text-align: center; letter-spacing: 4px; font-weight: bold; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-transform: uppercase; }
+    .code-display { font-size: 2.5em; font-weight: bold; color: #0066ff; letter-spacing: 6px; background: #eef3ff; padding: 15px; border-radius: 8px; margin: 15px 0; }
     .hidden { display: none; }
     progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
     .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
-    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; }
+    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; text-align: left; }
   </style>
 </head>
 <body>
 
   <div class="card" id="setup-card">
-    <h3 style="margin-top:0;">1. Connect Offline via Hotspot</h3>
-    <p style="font-size: 0.9em; color: #555;">Connect both devices to the same local Wi-Fi Hotspot.</p>
-    <button id="host-btn">Device A: Create Connection Code</button>
-    <button id="join-btn" class="secondary">Device B: Enter Connection Code</button>
+    <h3 style="margin-top:0;">Fast Wi-Fi File Share</h3>
+    <p style="font-size: 0.9em; color: #555;">Connect both devices to the same Wi-Fi network, then choose an option below:</p>
+    <button id="create-room-btn">Create 4-Digit Room</button>
+    <button id="join-room-btn" class="secondary">Join with 4-Digit Code</button>
   </div>
 
-  <div class="card hidden" id="connection-card">
-    <h3 id="conn-title">Connection Code</h3>
-    <p id="conn-instruction" style="font-size: 0.9em; color: #555;"></p>
-    <div id="text-qr">Generating code...</div>
-    <div id="reply-box" class="hidden">
-      <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Reply Code from Device B:</p>
-      <textarea id="remote-answer-input" placeholder="Paste reply here..."></textarea>
-      <button id="connect-confirm-btn">Complete Connection</button>
-    </div>
-    <div id="join-box" class="hidden">
-      <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Device A's Code Here:</p>
-      <textarea id="remote-offer-input" placeholder="Paste code here..."></textarea>
-      <button id="join-submit-btn">Generate Reply Code</button>
-    </div>
+  <div class="card hidden" id="host-card">
+    <h3 style="margin-top:0;">Your Room Code</h3>
+    <p style="font-size: 0.9em; color: #555;">Give this 4-character code to the other device:</p>
+    <div class="code-display" id="host-code-display">----</div>
+    <p class="status-text" id="host-status">Waiting for peer to connect...</p>
+  </div>
+
+  <div class="card hidden" id="join-card">
+    <h3 style="margin-top:0;">Enter Room Code</h3>
+    <p style="font-size: 0.9em; color: #555;">Type the 4-character code shown on Device A:</p>
+    <input type="text" id="room-input" maxlength="4" placeholder="ABCD">
+    <button id="connect-room-btn">Connect to Room</button>
+    <p class="status-text" id="join-status"></p>
   </div>
 
   <div class="card hidden" id="transfer-card">
-    <h3 style="color: #16a34a; margin-top: 0;">● Connected Locally</h3>
-    <input type="file" id="file-input" multiple style="width: 100%;">
+    <h3 style="color: #16a34a; margin-top: 0;">● Connected Successfully</h3>
+    <input type="file" id="file-input" multiple style="width: 100%; margin-bottom: 10px;">
     <button id="send-btn">Send Selected Files</button>
     
     <div id="send-progress-box" class="hidden">
@@ -55,7 +54,7 @@
 
     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
-    <h4 style="margin-bottom: 8px;">Received Files</h4>
+    <h4 style="margin-bottom: 8px; text-align: left;">Received Files</h4>
     <div id="receive-progress-box" class="hidden">
       <progress id="receive-progress" value="0" max="100"></progress>
       <div class="status-text" id="receive-status">Receiving...</div>
@@ -64,30 +63,80 @@
   </div>
 
   <script>
-    const pc = new RTCPeerConnection({ iceServers: [] });
+    let pc = null;
     let dataChannel = null;
     const CHUNK_SIZE = 16384;
+    const SIGNALING_URL = "https://free-signaling-server.herokuapp.com"; // Public or fallback relay
+    // Alternatively, using a free broadcast channel approach via a public test relay:
+    let ws = null;
 
     const setupCard = document.getElementById('setup-card');
-    const connCard = document.getElementById('connection-card');
+    const hostCard = document.getElementById('host-card');
+    const joinCard = document.getElementById('join-card');
     const transferCard = document.getElementById('transfer-card');
-    const connTitle = document.getElementById('conn-title');
-    const connInstruction = document.getElementById('conn-instruction');
-    const textQr = document.getElementById('text-qr');
-    const replyBox = document.getElementById('reply-box');
-    const joinBox = document.getElementById('join-box');
 
-    function cleanCode(raw) {
-      return raw.replace(/[\r\n\s]+/g, '').trim();
+    function generateCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
     }
 
-    function setupDataChannel(channel) {
-      dataChannel = channel;
+    function initPeerConnection(isHost, code) {
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+
+      // Connect via public WebSocket relay room
+      ws = new WebSocket(`wss://socketsbay.com/wss/v2/1/demo/`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'join', room: code }));
+        if (isHost) {
+          dataChannel = pc.createDataChannel("file-transfer");
+          setupDataChannel();
+          pc.createOffer().then(offer => {
+            pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ type: 'signal', room: code, sdp: offer }));
+          });
+        }
+      };
+
+      ws.onmessage = async (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'signal' && msg.sdp) {
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          if (msg.sdp.type === 'offer') {
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: 'signal', room: code, sdp: answer }));
+          }
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'signal', room: code, candidate: event.candidate }));
+        }
+      };
+
+      if (!isHost) {
+        pc.ondatachannel = (event) => {
+          dataChannel = event.channel;
+          setupDataChannel();
+        };
+      }
+    }
+
+    function setupDataChannel() {
       dataChannel.binaryType = 'arraybuffer';
       dataChannel.bufferedAmountLowThreshold = 65536;
 
       dataChannel.onopen = () => {
-        connCard.classList.add('hidden');
+        hostCard.classList.add('hidden');
+        joinCard.classList.add('hidden');
         transferCard.classList.remove('hidden');
       };
 
@@ -139,66 +188,28 @@
       };
     }
 
-    // Host Flow
-    document.getElementById('host-btn').addEventListener('click', async () => {
-      try {
-        setupCard.classList.add('hidden');
-        connCard.classList.remove('hidden');
-        connTitle.textContent = "Step 1: Copy Code for Device B";
-        connInstruction.textContent = "Copy this code block and share it with Device B:";
-
-        const channel = pc.createDataChannel("file-transfer");
-        setupDataChannel(channel);
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
-        replyBox.classList.remove('hidden');
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-
-    document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
-      try {
-        const raw = document.getElementById('remote-answer-input').value;
-        const parsed = JSON.parse(atob(cleanCode(raw)));
-        await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
-      } catch (err) {
-        alert("Formatting error. Please copy the complete text box cleanly.");
-      }
-    });
-
-    // Joiner Flow
-    document.getElementById('join-btn').addEventListener('click', () => {
+    // UI Event Listeners
+    document.getElementById('create-room-btn').addEventListener('click', () => {
+      const roomCode = generateCode();
       setupCard.classList.add('hidden');
-      connCard.classList.remove('hidden');
-      connTitle.textContent = "Step 1: Enter Host Code";
-      connInstruction.textContent = "Paste the code you received from Device A below:";
-      textQr.style.display = 'none';
-      joinBox.classList.remove('hidden');
-
-      pc.ondatachannel = (event) => setupDataChannel(event.channel);
+      hostCard.classList.remove('hidden');
+      document.getElementById('host-code-display').textContent = roomCode;
+      initPeerConnection(true, roomCode);
     });
 
-    document.getElementById('join-submit-btn').addEventListener('click', async () => {
-      try {
-        const raw = document.getElementById('remote-offer-input').value;
-        const parsed = JSON.parse(atob(cleanCode(raw)));
-        await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
+    document.getElementById('join-room-btn').addEventListener('click', () => {
+      setupCard.classList.add('hidden');
+      joinCard.classList.remove('hidden');
+    });
 
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        connTitle.textContent = "Step 2: Copy Reply Code";
-        connInstruction.textContent = "Copy this reply code and send it back to Device A:";
-        joinBox.classList.add('hidden');
-        textQr.style.display = 'block';
-        textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
-      } catch (err) {
-        alert("Formatting error. Please verify the pasted code.");
+    document.getElementById('connect-room-btn').addEventListener('click', () => {
+      const roomCode = document.getElementById('room-input').value.trim().toUpperCase();
+      if (roomCode.length !== 4) {
+        alert("Please enter a valid 4-character code.");
+        return;
       }
+      document.getElementById('join-status').textContent = "Connecting to room...";
+      initPeerConnection(false, roomCode);
     });
 
     // File Transfer Handler
