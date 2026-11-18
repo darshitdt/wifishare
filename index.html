@@ -10,9 +10,8 @@
     button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
     button.secondary { background: #333; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.85em; text-align: center; margin: 10px 0; }
-    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; }
-    video { width: 100%; border-radius: 8px; background: #000; margin-top: 10px; display: none; }
+    #text-qr { background: #eef3ff; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.8em; text-align: center; margin: 10px 0; user-select: all; max-height: 120px; overflow-y: auto; }
+    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.8em; }
     .hidden { display: none; }
     progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
     .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
@@ -78,20 +77,6 @@
     const replyBox = document.getElementById('reply-box');
     const joinBox = document.getElementById('join-box');
 
-    function gatherIceCandidates() {
-      return new Promise((resolve) => {
-        if (pc.iceGatheringState === 'complete') return resolve();
-        const check = () => {
-          if (pc.iceGatheringState === 'complete') {
-            pc.removeEventListener('icegatheringstatechange', check);
-            resolve();
-          }
-        };
-        pc.addEventListener('icegatheringstatechange', check);
-        setTimeout(resolve, 1500);
-      });
-    }
-
     function setupDataChannel(channel) {
       dataChannel = channel;
       dataChannel.binaryType = 'arraybuffer';
@@ -152,20 +137,24 @@
 
     // Host Flow
     document.getElementById('host-btn').addEventListener('click', async () => {
-      setupCard.classList.add('hidden');
-      connCard.classList.remove('hidden');
-      connTitle.textContent = "Step 1: Copy Code for Device B";
-      connInstruction.textContent = "Copy this text code and give it to Device B via WhatsApp/Bluetooth or text message over the hotspot network:";
+      try {
+        setupCard.classList.add('hidden');
+        connCard.classList.remove('hidden');
+        connTitle.textContent = "Step 1: Copy Code for Device B";
+        connInstruction.textContent = "Copy this text code and share it with Device B:";
 
-      const channel = pc.createDataChannel("file-transfer");
-      setupDataChannel(channel);
+        const channel = pc.createDataChannel("file-transfer");
+        setupDataChannel(channel);
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await gatherIceCandidates();
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-      textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
-      replyBox.classList.remove('hidden');
+        // Immediate fallback display so it never freezes waiting for ICE gathering
+        textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
+        replyBox.classList.remove('hidden');
+      } catch (err) {
+        alert("Error creating offer: " + err.message);
+      }
     });
 
     document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
@@ -198,7 +187,6 @@
 
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        await gatherIceCandidates();
 
         connTitle.textContent = "Step 2: Copy Reply Code";
         connInstruction.textContent = "Copy this reply code and send it back to Device A:";
@@ -244,7 +232,7 @@
 
           const pct = Math.min(100, Math.round((offset / file.size) * 100));
           sendBar.value = pct;
-          sendStatus.textContent = `Sending ${file.name}... ${pct%}%`;
+          sendStatus.textContent = `Sending ${file.name}... ${pct}%`;
         }
 
         dataChannel.send(JSON.stringify({ type: 'eof' }));
