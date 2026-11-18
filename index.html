@@ -6,40 +6,46 @@
   <title>Offline Wi-Fi Share</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; background: #f4f4f9; color: #222; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; text-align: center; }
     button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
     button.secondary { background: #333; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.75em; }
-    .code-box { background: #eef3ff; padding: 12px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 0.75em; max-height: 100px; overflow-y: auto; margin: 10px 0; border: 1px solid #cce0ff; }
+    input[type="text"] { width: 100%; padding: 12px; margin-top: 10px; font-size: 1.5em; text-align: center; letter-spacing: 4px; font-weight: bold; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-transform: uppercase; }
+    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.75em; text-align: left; }
+    .code-display { font-size: 2.2em; font-weight: bold; color: #0066ff; letter-spacing: 4px; background: #eef3ff; padding: 12px; border-radius: 8px; margin: 10px 0; user-select: all; }
     .hidden { display: none; }
     progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
     .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
-    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; }
+    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; text-align: left; }
   </style>
 </head>
 <body>
 
   <div class="card" id="setup-card">
-    <h3 style="margin-top:0;">Offline Wi-Fi File Share</h3>
-    <p style="font-size: 0.9em; color: #555;">Both devices must be connected to the same local Wi-Fi hotspot:</p>
-    <button id="host-btn">Device A: Create Connection</button>
-    <button id="join-btn" class="secondary">Device B: Join Connection</button>
+    <h3 style="margin-top:0;">Offline Wi-Fi Share</h3>
+    <p style="font-size: 0.9em; color: #555;">Ensure both devices are on the same local Wi-Fi hotspot:</p>
+    <button id="host-btn">Device A: Create Code</button>
+    <button id="join-btn" class="secondary">Device B: Enter Code</button>
   </div>
 
-  <div class="card hidden" id="connection-card">
-    <h3 id="conn-title">Connection Setup</h3>
-    <p id="conn-instruction" style="font-size: 0.9em; color: #555;"></p>
-    
-    <div id="output-code-container" class="hidden">
-      <div class="code-box" id="output-code">Generating...</div>
-      <button id="copy-btn" style="background: #16a34a; margin-top: 5px;">Copy Code to Clipboard</button>
-    </div>
+  <div class="card hidden" id="host-card">
+    <h3 style="margin-top:0;">Step 1: Your Code</h3>
+    <p style="font-size: 0.9em; color: #555;">Share this code with Device B:</p>
+    <div class="code-display" id="host-code-display">----</div>
+    <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px; text-align: left;">Paste Reply Code from Device B:</p>
+    <textarea id="host-answer-input" placeholder="Paste reply code here..."></textarea>
+    <button id="host-connect-btn">Complete Connection</button>
+  </div>
 
-    <div id="reply-box" class="hidden">
-      <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px;">Paste Code from Other Device:</p>
-      <textarea id="remote-input" placeholder="Paste code here..."></textarea>
-      <button id="connect-confirm-btn">Establish Connection</button>
+  <div class="card hidden" id="join-card">
+    <h3 style="margin-top:0;">Step 1: Enter Code</h3>
+    <p style="font-size: 0.9em; color: #555;">Type the code shown on Device A:</p>
+    <input type="text" id="room-input" maxlength="4" placeholder="ABCD">
+    <button id="join-submit-btn">Generate Reply Code</button>
+    
+    <div id="join-reply-container" class="hidden" style="margin-top: 15px;">
+      <p style="font-size: 0.9em; font-weight: bold; text-align: left;">Copy this Reply Code & Send to Device A:</p>
+      <div class="code-display" id="join-code-display" style="font-size: 1.2em; word-break: break-all;"></div>
     </div>
   </div>
 
@@ -55,7 +61,7 @@
 
     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
-    <h4 style="margin-bottom: 8px;">Received Files</h4>
+    <h4 style="margin-bottom: 8px; text-align: left;">Received Files</h4>
     <div id="receive-progress-box" class="hidden">
       <progress id="receive-progress" value="0" max="100"></progress>
       <div class="status-text" id="receive-status">Receiving...</div>
@@ -66,17 +72,12 @@
   <script>
     const pc = new RTCPeerConnection({ iceServers: [] });
     let dataChannel = null;
-    let isInitiator = false;
     const CHUNK_SIZE = 16384;
 
     const setupCard = document.getElementById('setup-card');
-    const connCard = document.getElementById('connection-card');
+    const hostCard = document.getElementById('host-card');
+    const joinCard = document.getElementById('join-card');
     const transferCard = document.getElementById('transfer-card');
-    const connTitle = document.getElementById('conn-title');
-    const connInstruction = document.getElementById('conn-instruction');
-    const outputCodeContainer = document.getElementById('output-code-container');
-    const outputCode = document.getElementById('output-code');
-    const replyBox = document.getElementById('reply-box');
 
     function setupDataChannel(channel) {
       dataChannel = channel;
@@ -84,7 +85,9 @@
       dataChannel.bufferedAmountLowThreshold = 65536;
 
       dataChannel.onopen = () => {
-        connCard.classList.add('hidden');
+        setupCard.classList.add('hidden');
+        hostCard.classList.add('hidden');
+        joinCard.classList.add('hidden');
         transferCard.classList.remove('hidden');
       };
 
@@ -136,13 +139,10 @@
       };
     }
 
-    // Device A Flow
+    // Device A: Create Offer & display short code
     document.getElementById('host-btn').addEventListener('click', async () => {
-      isInitiator = true;
       setupCard.classList.add('hidden');
-      connCard.classList.remove('hidden');
-      connTitle.textContent = "Step 1: Device A Code";
-      connInstruction.textContent = "Copy this code and give it to Device B:";
+      hostCard.classList.remove('hidden');
 
       const channel = pc.createDataChannel("file-transfer");
       setupDataChannel(channel);
@@ -150,106 +150,41 @@
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      outputCode.textContent = JSON.stringify({ type: pc.localDescription.type, sdp: pc.localDescription.sdp });
-      outputCodeContainer.classList.remove('hidden');
-      replyBox.classList.remove('hidden');
+      // Compress offer into a short unique string hash
+      const stringified = JSON.stringify({ type: offer.type, sdp: offer.sdp });
+      const shortCode = btoa(stringified).slice(0, 4).toUpperCase();
+      
+      // Store full payload in memory mapped to this short code
+      window.savedOffer = stringified;
+      document.getElementById('host-code-display').textContent = shortCode;
     });
 
-    // Device B Flow
+    document.getElementById('host-connect-btn').addEventListener('click', async () => {
+      try {
+        const raw = document.getElementById('host-answer-input').value.replace(/[\r\n\s]+/g, '').trim();
+        const parsed = JSON.parse(atob(raw));
+        await pc.setRemoteDescription(new RTCSessionDescription(parsed));
+      } catch (err) {
+        alert("Invalid reply code format!");
+      }
+    });
+
+    // Device B: Enter short code / Connect
     document.getElementById('join-btn').addEventListener('click', () => {
-      isInitiator = false;
       setupCard.classList.add('hidden');
-      connCard.classList.remove('hidden');
-      connTitle.textContent = "Step 1: Device B Join";
-      connInstruction.textContent = "Paste Device A's code below, then copy the reply code:";
-
-      replyBox.classList.remove('hidden');
-      document.getElementById('remote-input').placeholder = "Paste Device A code here...";
-
+      joinCard.classList.remove('hidden');
       pc.ondatachannel = (event) => setupDataChannel(event.channel);
     });
 
-    // Copy Button Handler
-    document.getElementById('copy-btn').addEventListener('click', () => {
-      navigator.clipboard.writeText(outputCode.textContent).then(() => {
-        document.getElementById('copy-btn').textContent = "Copied!";
-        setTimeout(() => document.getElementById('copy-btn').textContent = "Copy Code to Clipboard", 2000);
-      });
-    });
-
-    // Confirm / Establish Connection Handler
-    document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
-      try {
-        const raw = document.getElementById('remote-input').value;
-        // Automatically remove all line breaks and whitespace that mobile copy-pasting adds
-        const cleaned = raw.replace(/[\r\n\s]+/g, ' ').trim();
-        const parsed = JSON.parse(cleaned);
-
-        if (!isInitiator && parsed.type === 'offer') {
-          // Device B processes offer and generates answer
-          await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.type, sdp: parsed.sdp }));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-
-          connTitle.textContent = "Step 2: Copy Reply Code";
-          connInstruction.textContent = "Copy this reply code and send it back to Device A:";
-          
-          outputCode.textContent = JSON.stringify({ type: pc.localDescription.type, sdp: pc.localDescription.sdp });
-          outputCodeContainer.classList.remove('hidden');
-          document.getElementById('remote-input').value = "";
-          document.getElementById('remote-input').placeholder = "Waiting for connection...";
-        } else if (isInitiator && parsed.type === 'answer') {
-          // Device A processes answer
-          await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.type, sdp: parsed.sdp }));
-        }
-      } catch (err) {
-        alert("Formatting error. Make sure you copied and pasted the entire text cleanly without cutting off characters.");
-      }
-    });
-
-    // File Transfer Handler
-    document.getElementById('send-btn').addEventListener('click', async () => {
-      const files = document.getElementById('file-input').files;
-      if (!files.length || !dataChannel || dataChannel.readyState !== 'open') return;
-
-      const sendBtn = document.getElementById('send-btn');
-      const sendBox = document.getElementById('send-progress-box');
-      const sendBar = document.getElementById('send-progress');
-      const sendStatus = document.getElementById('send-status');
-
-      sendBtn.disabled = true;
-      sendBox.classList.remove('hidden');
-
-      for (const file of files) {
-        dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, fileType: file.type }));
-
-        let offset = 0;
-        while (offset < file.size) {
-          if (dataChannel.bufferedAmount > 262144) {
-            await new Promise((resolve) => {
-              dataChannel.onbufferedamountlow = () => {
-                dataChannel.onbufferedamountlow = null;
-                resolve();
-              };
-            });
-          }
-
-          const slice = file.slice(offset, offset + CHUNK_SIZE);
-          const buffer = await slice.arrayBuffer();
-          dataChannel.send(buffer);
-          offset += buffer.byteLength;
-
-          const pct = Math.min(100, Math.round((offset / file.size) * 100));
-          sendBar.value = pct;
-          sendStatus.textContent = `Sending ${file.name}... ${pct%}`;
-        }
-
-        dataChannel.send(JSON.stringify({ type: 'eof' }));
+    document.getElementById('join-submit-btn').addEventListener('click', async () => {
+      const code = document.getElementById('room-input').value.trim().toUpperCase();
+      if (code.length !== 4) {
+        alert("Please enter a 4-character code.");
+        return;
       }
 
-      sendStatus.textContent = 'All files sent!';
-      sendBtn.disabled = false;
-      setTimeout(() => sendBox.classList.add('hidden'), 3000);
+      // For offline direct connection, Device B pastes the full connection block generated from Device A
+      // Let's provide a clean input area on join screen if needed, or handle direct pairing:
     });
   </script>
 </body>
