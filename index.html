@@ -77,6 +77,16 @@
     const replyBox = document.getElementById('reply-box');
     const joinBox = document.getElementById('join-box');
 
+    function parseConnectionCode(raw) {
+      // Remove all spaces, tabs, and newlines introduced by mobile copy-pasting
+      const cleaned = raw.replace(/\s+/g, '');
+      try {
+        return JSON.parse(atob(cleaned));
+      } catch (e) {
+        return JSON.parse(cleaned); // Fallback if raw JSON
+      }
+    }
+
     function setupDataChannel(channel) {
       dataChannel = channel;
       dataChannel.binaryType = 'arraybuffer';
@@ -149,7 +159,6 @@
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        // Immediate fallback display so it never freezes waiting for ICE gathering
         textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
         replyBox.classList.remove('hidden');
       } catch (err) {
@@ -160,10 +169,10 @@
     document.getElementById('connect-confirm-btn').addEventListener('click', async () => {
       try {
         const raw = document.getElementById('remote-answer-input').value.trim();
-        const parsed = JSON.parse(atob(raw));
+        const parsed = parseConnectionCode(raw);
         await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
       } catch (err) {
-        alert("Invalid code format!");
+        alert("Invalid code format! Please make sure you copied the entire text code.");
       }
     });
 
@@ -182,7 +191,7 @@
     document.getElementById('join-submit-btn').addEventListener('click', async () => {
       try {
         const raw = document.getElementById('remote-offer-input').value.trim();
-        const parsed = JSON.parse(atob(raw));
+        const parsed = parseConnectionCode(raw);
         await pc.setRemoteDescription(new RTCSessionDescription({ type: parsed.t, sdp: parsed.s }));
 
         const answer = await pc.createAnswer();
@@ -194,7 +203,7 @@
         textQr.style.display = 'block';
         textQr.textContent = btoa(JSON.stringify({ t: pc.localDescription.type, s: pc.localDescription.sdp }));
       } catch (err) {
-        alert("Invalid offer code!");
+        alert("Invalid offer code! Please check your pasted text.");
       }
     });
 
