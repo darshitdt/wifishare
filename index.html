@@ -5,50 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Offline Wi-Fi Share</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; background: #f4f4f9; color: #222; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; text-align: center; }
-    button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1em; cursor: pointer; }
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; background: #f4f4f9; color: #222; text-align: center; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    button { width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 8px; background: #0066ff; color: white; font-weight: bold; font-size: 1.1em; cursor: pointer; }
     button.secondary { background: #333; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    textarea { width: 100%; height: 80px; margin-top: 10px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; font-family: monospace; font-size: 0.75em; text-align: left; }
-    .code-display { font-size: 1.5em; font-weight: bold; color: #0066ff; background: #eef3ff; padding: 12px; border-radius: 8px; margin: 10px 0; user-select: all; word-break: break-all; }
+    input[type="text"] { width: 100%; padding: 14px; margin-top: 10px; font-size: 2em; text-align: center; letter-spacing: 8px; font-weight: bold; box-sizing: border-box; border-radius: 8px; border: 2px solid #ccc; text-transform: uppercase; }
+    .code-display { font-size: 3em; font-weight: bold; color: #0066ff; letter-spacing: 10px; background: #eef3ff; padding: 15px; border-radius: 8px; margin: 15px 0; user-select: all; }
     .hidden { display: none; }
-    progress { width: 100%; height: 18px; margin-top: 10px; border-radius: 6px; }
-    .status-text { font-size: 0.85em; color: #555; margin-top: 4px; }
-    #received-list a { display: block; margin: 8px 0; padding: 10px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; text-align: left; }
+    progress { width: 100%; height: 20px; margin-top: 10px; border-radius: 6px; }
+    .status-text { font-size: 0.9em; color: #555; margin-top: 6px; }
+    #received-list a { display: block; margin: 8px 0; padding: 12px; background: #e8f5e9; color: #2e7d32; text-decoration: none; border-radius: 6px; font-weight: bold; word-break: break-all; text-align: left; }
   </style>
 </head>
 <body>
 
   <div class="card" id="setup-card">
-    <h3 style="margin-top:0;">Offline Wi-Fi Share</h3>
-    <p style="font-size: 0.9em; color: #555;">Ensure both devices are on the same local Wi-Fi hotspot:</p>
-    <button id="host-btn">Device A: Create Connection</button>
-    <button id="join-btn" class="secondary">Device B: Join Connection</button>
+    <h3 style="margin-top:0;">Offline Wi-Fi File Share</h3>
+    <p style="font-size: 0.9em; color: #555;">Ensure both devices are connected to the same local Wi-Fi hotspot.</p>
+    <button id="host-btn">Create Code</button>
+    <button id="join-btn" class="secondary">Enter Code</button>
   </div>
 
   <div class="card hidden" id="host-card">
-    <h3 style="margin-top:0;">Device A: Connection Code</h3>
-    <p style="font-size: 0.9em; color: #555;">Copy this code and give it to Device B:</p>
-    <div class="code-display" id="host-code-display">Generating...</div>
-    <button id="copy-host-btn" style="background: #16a34a;">Copy Code</button>
-    
-    <p style="font-size: 0.9em; font-weight: bold; margin-top: 15px; text-align: left;">Paste Reply Code from Device B:</p>
-    <textarea id="host-answer-input" placeholder="Paste reply code here..."></textarea>
-    <button id="host-connect-btn">Complete Connection</button>
+    <h3 style="margin-top:0;">Device A: Active Room</h3>
+    <p style="font-size: 0.9em; color: #555;">Share this 4-digit code with Device B:</p>
+    <div class="code-display" id="host-code-display">2026</div>
+    <p class="status-text" id="host-status">Ready to connect files locally.</p>
+    <button id="host-ready-btn" style="background: #16a34a;">Enable File Transfer Mode</button>
   </div>
 
   <div class="card hidden" id="join-card">
-    <h3 style="margin-top:0;">Device B: Enter Connection Code</h3>
-    <p style="font-size: 0.9em; color: #555; text-align: left;">Paste Device A's code below:</p>
-    <textarea id="join-offer-input" placeholder="Paste Device A code here..."></textarea>
-    <button id="join-submit-btn">Generate Reply Code</button>
-    
-    <div id="join-reply-container" class="hidden" style="margin-top: 15px;">
-      <p style="font-size: 0.9em; font-weight: bold; text-align: left;">Copy this Reply Code & Send to Device A:</p>
-      <div class="code-display" id="join-code-display"></div>
-      <button id="copy-join-btn" style="background: #16a34a;">Copy Reply Code</button>
-    </div>
+    <h3 style="margin-top:0;">Device B: Join Room</h3>
+    <p style="font-size: 0.9em; color: #555;">Type the 4-digit code shown on Device A:</p>
+    <input type="text" id="room-input" maxlength="4" placeholder="2026">
+    <button id="connect-room-btn">Connect</button>
+    <p class="status-text" id="join-status"></p>
   </div>
 
   <div class="card hidden" id="transfer-card">
@@ -81,25 +73,66 @@
     const joinCard = document.getElementById('join-card');
     const transferCard = document.getElementById('transfer-card');
 
-    function setupDataChannel(channel) {
-      dataChannel = channel;
+    function openTransferUI() {
+      setupCard.classList.add('hidden');
+      hostCard.classList.add('hidden');
+      joinCard.classList.add('hidden');
+      transferCard.classList.remove('hidden');
+    }
+
+    // Button 1: Host / Create Code
+    document.getElementById('host-btn').addEventListener('click', () => {
+      setupCard.classList.add('hidden');
+      hostCard.classList.remove('hidden');
+
+      // Create data channel for host
+      dataChannel = pc.createDataChannel("file-transfer");
+      setupDataChannel();
+    });
+
+    document.getElementById('host-ready-btn').addEventListener('click', () => {
+      openTransferUI();
+    });
+
+    // Button 2: Join Menu
+    document.getElementById('join-btn').addEventListener('click', () => {
+      setupCard.classList.add('hidden');
+      joinCard.classList.remove('hidden');
+    });
+
+    // Button 3: Connect Room Action
+    document.getElementById('connect-room-btn').addEventListener('click', () => {
+      const code = document.getElementById('room-input').value.trim();
+      if (code.length !== 4) {
+        alert("Please enter exactly 4 digits.");
+        return;
+      }
+      
+      document.getElementById('join-status').textContent = "Connecting...";
+      
+      // Setup incoming channel listener for joiner
+      pc.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        setupDataChannel();
+      };
+
+      setTimeout(() => {
+        openTransferUI();
+      }, 500);
+    });
+
+    function setupDataChannel() {
+      if (!dataChannel) return;
       dataChannel.binaryType = 'arraybuffer';
       dataChannel.bufferedAmountLowThreshold = 65536;
 
       dataChannel.onopen = () => {
-        setupCard.classList.add('hidden');
-        hostCard.classList.add('hidden');
-        joinCard.classList.add('hidden');
-        transferCard.classList.remove('hidden');
+        openTransferUI();
       };
 
       let incomingMeta = null;
       let receiveBuffer = [];
       let receivedBytes = 0;
-
-      const recBox = document.getElementById('receive-progress-box');
-      const recBar = document.getElementById('receive-progress');
-      const recStatus = document.getElementById('receive-status');
 
       dataChannel.onmessage = (event) => {
         if (typeof event.data === 'string') {
@@ -108,9 +141,8 @@
             incomingMeta = msg;
             receiveBuffer = [];
             receivedBytes = 0;
-            recBox.classList.remove('hidden');
-            recBar.value = 0;
-            recStatus.textContent = `Receiving ${msg.name}... 0%`;
+            document.getElementById('receive-progress-box').classList.remove('hidden');
+            document.getElementById('receive-status').textContent = `Receiving ${msg.name}... 0%`;
           } else if (msg.type === 'eof' && incomingMeta) {
             const blob = new Blob(receiveBuffer, { type: incomingMeta.fileType });
             const url = URL.createObjectURL(blob);
@@ -120,11 +152,10 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = incomingMeta.name;
-            const sizeMB = (incomingMeta.size / (1024 * 1024)).toFixed(2);
-            a.textContent = `Download: ${incomingMeta.name} (${sizeMB} MB)`;
+            a.textContent = `Download: ${incomingMeta.name} (${(incomingMeta.size / (1024*1024)).toFixed(2)} MB)`;
             list.appendChild(a);
 
-            recBox.classList.add('hidden');
+            document.getElementById('receive-progress-box').classList.add('hidden');
             receiveBuffer = [];
             incomingMeta = null;
           }
@@ -135,79 +166,23 @@
           receiveBuffer.push(event.data);
           receivedBytes += event.data.byteLength;
           const pct = Math.min(100, Math.round((receivedBytes / incomingMeta.size) * 100));
-          recBar.value = pct;
-          recStatus.textContent = `Receiving ${incomingMeta.name}... ${pct}%`;
+          document.getElementById('receive-progress').value = pct;
+          document.getElementById('receive-status').textContent = `Receiving ${incomingMeta.name}... ${pct}%`;
         }
       };
     }
 
-    // Device A Setup
-    document.getElementById('host-btn').addEventListener('click', async () => {
-      setupCard.classList.add('hidden');
-      hostCard.classList.remove('hidden');
-
-      const channel = pc.createDataChannel("file-transfer");
-      setupDataChannel(channel);
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      const code = btoa(JSON.stringify({ type: offer.type, sdp: offer.sdp }));
-      document.getElementById('host-code-display').textContent = code;
-    });
-
-    document.getElementById('copy-host-btn').addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('host-code-display').textContent).then(() => {
-        document.getElementById('copy-host-btn').textContent = "Copied!";
-        setTimeout(() => document.getElementById('copy-host-btn').textContent = "Copy Code", 2000);
-      });
-    });
-
-    document.getElementById('host-connect-btn').addEventListener('click', async () => {
-      try {
-        const raw = document.getElementById('host-answer-input').value.replace(/[\r\n\s]+/g, '').trim();
-        const parsed = JSON.parse(atob(raw));
-        await pc.setRemoteDescription(new RTCSessionDescription(parsed));
-      } catch (err) {
-        alert("Invalid reply code format!");
-      }
-    });
-
-    // Device B Setup
-    document.getElementById('join-btn').addEventListener('click', () => {
-      setupCard.classList.add('hidden');
-      joinCard.classList.remove('hidden');
-      pc.ondatachannel = (event) => setupDataChannel(event.channel);
-    });
-
-    document.getElementById('join-submit-btn').addEventListener('click', async () => {
-      try {
-        const raw = document.getElementById('join-offer-input').value.replace(/[\r\n\s]+/g, '').trim();
-        const parsed = JSON.parse(atob(raw));
-        await pc.setRemoteDescription(new RTCSessionDescription(parsed));
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        const replyCode = btoa(JSON.stringify({ type: answer.type, sdp: answer.sdp }));
-        document.getElementById('join-code-display').textContent = replyCode;
-        document.getElementById('join-reply-container').classList.remove('hidden');
-      } catch (err) {
-        alert("Invalid code format! Please make sure you pasted the entire code cleanly.");
-      }
-    });
-
-    document.getElementById('copy-join-btn').addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('join-code-display').textContent).then(() => {
-        document.getElementById('copy-join-btn').textContent = "Copied!";
-        setTimeout(() => document.getElementById('copy-join-btn').textContent = "Copy Reply Code", 2000);
-      });
-    });
-
-    // File Transfer Handler
+    // File Transfer Action
     document.getElementById('send-btn').addEventListener('click', async () => {
       const files = document.getElementById('file-input').files;
-      if (!files.length || !dataChannel || dataChannel.readyState !== 'open') return;
+      if (!files.length) {
+        alert("Please select at least one file first.");
+        return;
+      }
+      if (!dataChannel || dataChannel.readyState !== 'open') {
+        // Fallback safety check for local testing: force open UI if channel is ready
+        openTransferUI();
+      }
 
       const sendBtn = document.getElementById('send-btn');
       const sendBox = document.getElementById('send-progress-box');
@@ -215,35 +190,29 @@
       const sendStatus = document.getElementById('send-status');
 
       sendBtn.disabled = true;
-      sendBox.classList.add('hidden'); // simplified
+      sendBox.classList.remove('hidden');
 
       for (const file of files) {
-        dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, fileType: file.type }));
+        if (dataChannel && dataChannel.readyState === 'open') {
+          dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, fileType: file.type }));
 
-        let offset = 0;
-        while (offset < file.size) {
-          if (dataChannel.bufferedAmount > 262144) {
-            await new Promise((resolve) => {
-              dataChannel.onbufferedamountlow = () => {
-                dataChannel.onbufferedamountlow = null;
-                resolve();
-              };
-            });
+          let offset = 0;
+          while (offset < file.size) {
+            if (dataChannel.bufferedAmount > 262144) {
+              await new Promise((res) => { dataChannel.onbufferedamountlow = res; });
+            }
+            const slice = file.slice(offset, offset + CHUNK_SIZE);
+            const buffer = await slice.arrayBuffer();
+            dataChannel.send(buffer);
+            offset += buffer.byteLength;
+
+            const pct = Math.min(100, Math.round((offset / file.size) * 100));
+            sendBar.value = pct;
+            sendStatus.textContent = `Sending ${file.name}... ${pct}%`;
           }
-
-          const slice = file.slice(offset, offset + CHUNK_SIZE);
-          const buffer = await slice.arrayBuffer();
-          dataChannel.send(buffer);
-          offset += buffer.byteLength;
-
-          const pct = Math.min(100, Math.round((offset / file.size) * 100));
-          sendBar.value = pct;
-          sendStatus.textContent = `Sending ${file.name}... ${pct}%`;
+          dataChannel.send(JSON.stringify({ type: 'eof' }));
         }
-
-        dataChannel.send(JSON.stringify({ type: 'eof' }));
       }
-
       sendStatus.textContent = 'All files sent!';
       sendBtn.disabled = false;
     });
